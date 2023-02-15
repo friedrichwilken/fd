@@ -7,4 +7,3 @@ build:
 clean:
 	go mod tidy 
 	go fmt ./...
-

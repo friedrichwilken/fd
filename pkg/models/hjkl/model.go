@@ -87,12 +87,12 @@ func (m model) parentDir() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) Init() tea.Cmd {
+func (m selection) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m selection) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	// Is it a key press?
