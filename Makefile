@@ -4,6 +4,9 @@ run:
 build:
 	go build main.go
 
+test:
+	go test ./...
+
 clean:
 	go mod tidy 
 	go fmt ./...
