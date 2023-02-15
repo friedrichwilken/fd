@@ -17,7 +17,7 @@ jobs:
     - run: go test ./...
      
     - name: vulncheck
-        uses: Templum/govulncheck-action@<version>
+        uses: Templum/govulncheck-action@v0.0.9
         with:
           go-version: ${{ matrix.go-version }}
           vulncheck-version: latest
