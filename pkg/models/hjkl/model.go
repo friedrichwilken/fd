@@ -3,30 +3,18 @@ package hjkl
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/friedrichwilken/fd/pkg/path"
 	res "github.com/friedrichwilken/fd/pkg/resources"
 )
 
 var dbugmsg = ""
 var allowDbug = true
 
-func toPath(seqments ...string) string {
-	str := ""
-	for _, s := range seqments {
-		if len(s) == 0 {
-			continue
-		}
-		str = fmt.Sprintf("%s/%s", str, s)
-	}
-
-	return str
-}
-
 type model struct {
-	current []string
+	current path.Path
 	choices []os.DirEntry // items on the to-do list
 	cursor  int           // which to-do list item our cursor is pointing at
 }
@@ -43,7 +31,7 @@ func InitialModel() model {
 	}
 
 	s := model{
-		current: strings.Split(cur, "/"),
+		current: path.New(cur, "/"),
 		choices: chs,
 	}
 
@@ -56,9 +44,9 @@ func (m model) enterDir() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.current = append(m.current, dir.Name())
+	m.current.GoToSub(dir.Name())
 
-	chs, err := os.ReadDir(toPath(m.current...))
+	chs, err := os.ReadDir(m.current.String())
 	if err != nil {
 		panic(err)
 	}
@@ -70,13 +58,12 @@ func (m model) enterDir() (tea.Model, tea.Cmd) {
 }
 
 func (m model) parentDir() (tea.Model, tea.Cmd) {
-	if len(m.current) == 0 {
-		return m, nil
+	err := m.current.GoToParent()
+	if err != nil {
+		// todo display "cant move to paren, there is none"
 	}
 
-	m.current = m.current[:len(m.current)-1]
-
-	chs, err := os.ReadDir(toPath(m.current...))
+	chs, err := os.ReadDir(m.current.String())
 	if err != nil {
 		panic(err)
 	}
@@ -136,7 +123,7 @@ func (m model) View() string {
 	s := ""
 
 	//Show current dir
-	s = fmt.Sprintf("%scurrent dir: %s\n\n", s, toPath(m.current...))
+	s = fmt.Sprintf("%scurrent dir: %s\n\n", s, m.current.String())
 
 	// Iterate over our choices
 	for i, choice := range m.choices {
