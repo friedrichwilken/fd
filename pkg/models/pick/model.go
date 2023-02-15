@@ -1,4 +1,4 @@
-package select
+package pick
 
 import (
 	"fmt"
