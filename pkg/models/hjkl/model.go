@@ -3,6 +3,7 @@ package hjkl
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -12,42 +13,86 @@ import (
 var dbugmsg = ""
 var allowDbug = true
 
-type selection struct {
-    current string
+func toPath(seqments ...string) string {
+	str := ""
+	for _, s := range seqments {
+		if len(s) == 0 {
+			continue
+		}
+		str = fmt.Sprintf("%s/%s", str, s)
+	}
+
+	return str
+}
+
+type model struct {
+	current []string
 	choices []os.DirEntry // items on the to-do list
 	cursor  int           // which to-do list item our cursor is pointing at
 }
 
-func New() selection {
-    c, err := os.Getwd()
-    if err != nil{
-        panic(err)
-    }
+func InitialModel() model {
+	cur, err := os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 
-    s := selection{
-        current:  c,
-    }
-    
-    s.updateChoices()
-    
-    return s
+	chs, err := os.ReadDir(cur)
+	if err != nil {
+		panic(err)
+	}
+
+	s := model{
+		current: strings.Split(cur, "/"),
+		choices: chs,
+	}
+
+	return s
 }
 
-func (m selection)updateChoices() {
-    chs, err := os.ReadDir(m.current)
-    if err != nil {
-        panic(err)
-    }
+func (m model) enterDir() (tea.Model, tea.Cmd) {
+	dir := m.choices[m.cursor]
+	if !dir.IsDir() {
+		return m, nil
+	}
 
-    m.choices = chs
+	m.current = append(m.current, dir.Name())
+
+	chs, err := os.ReadDir(toPath(m.current...))
+	if err != nil {
+		panic(err)
+	}
+
+	m.choices = chs
+	m.cursor = 0
+
+	return m, nil
 }
 
-func (m selection) Init() tea.Cmd {
+func (m model) parentDir() (tea.Model, tea.Cmd) {
+	if len(m.current) == 0 {
+		return m, nil
+	}
+
+	m.current = m.current[:len(m.current)-1]
+
+	chs, err := os.ReadDir(toPath(m.current...))
+	if err != nil {
+		panic(err)
+	}
+
+	m.choices = chs
+	m.cursor = 0
+
+	return m, nil
+}
+
+func (m model) Init() tea.Cmd {
 	// Just return `nil`, which means "no I/O right now, please."
 	return nil
 }
 
-func (m selection) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	// Is it a key press?
@@ -72,11 +117,14 @@ func (m selection) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 
+		case "h", "left":
+			return m.parentDir()
+
 		// The "enter" key and the spacebar (a literal space) toggle
 		// the selected state for the item that the cursor is pointing at.
-		case "enter", " ":
-		    
-        }
+		case "enter", " ", "right", "l":
+			return m.enterDir()
+		}
 	}
 
 	// Return the updated model to the Bubble Tea runtime for processing.
@@ -84,21 +132,14 @@ func (m selection) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m selection) View() string {
+func (m model) View() string {
 	s := ""
 
-	if allowDbug {
-		s = fmt.Sprintf("%s******************************************************************\n", s)
-		s = fmt.Sprintf("%sDEBUG: %s\n", s, dbugmsg)
-		s = fmt.Sprintf("%s******************************************************************\n", s)
-	}
-
 	//Show current dir
-	s = fmt.Sprintf("%scurrent dir: %s\n", s, m.current)
+	s = fmt.Sprintf("%scurrent dir: %s\n\n", s, toPath(m.current...))
 
 	// Iterate over our choices
 	for i, choice := range m.choices {
-
 		// Is the cursor pointing at this choice?
 		cursor := " " // no cursor
 		if m.cursor == i {
@@ -111,6 +152,12 @@ func (m selection) View() string {
 
 	// The footer
 	s += "\nPress q to quit.\n"
+
+	if allowDbug {
+		s = fmt.Sprintf("%s******************************************************************\n", s)
+		s = fmt.Sprintf("%sDEBUG: %s\n", s, dbugmsg)
+		s = fmt.Sprintf("%s******************************************************************\n", s)
+	}
 
 	// Send the UI for rendering
 	return s
