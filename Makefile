@@ -3,3 +3,8 @@ run:
 
 build:
 	go build main.go
+
+clean:
+	go mod tidy 
+	go fmt ./...
+
