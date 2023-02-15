@@ -1,26 +1,45 @@
 package hjkl
 
 import (
-    	"fmt"
-        "log"
-        "os"
+	"fmt"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 
-    
-    res "github.com/friedrichwilken/fd/pkg/resources"
+	res "github.com/friedrichwilken/fd/pkg/resources"
 )
 
+var dbugmsg = ""
+var allowDbug = true
+
 type selection struct {
-	choices  []string         // items on the to-do list
-	cursor   int              // which to-do list item our cursor is pointing at
+    current string
+	choices []os.DirEntry // items on the to-do list
+	cursor  int           // which to-do list item our cursor is pointing at
 }
 
-func New() selection{
-	return selection{
-		// Our to-do list is a grocery list
-		choices: dirContent(), 
-	}
+func New() selection {
+    c, err := os.Getwd()
+    if err != nil{
+        panic(err)
+    }
+
+    s := selection{
+        current:  c,
+    }
+    
+    s.updateChoices()
+    
+    return s
+}
+
+func (m selection)updateChoices() {
+    chs, err := os.ReadDir(m.current)
+    if err != nil {
+        panic(err)
+    }
+
+    m.choices = chs
 }
 
 func (m selection) Init() tea.Cmd {
@@ -56,7 +75,7 @@ func (m selection) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// The "enter" key and the spacebar (a literal space) toggle
 		// the selected state for the item that the cursor is pointing at.
 		case "enter", " ":
-		    //todo move one dir down
+		    
         }
 	}
 
@@ -66,8 +85,16 @@ func (m selection) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m selection) View() string {
-	// The header
-	s := "What should we buy at the market?\n\n"
+	s := ""
+
+	if allowDbug {
+		s = fmt.Sprintf("%s******************************************************************\n", s)
+		s = fmt.Sprintf("%sDEBUG: %s\n", s, dbugmsg)
+		s = fmt.Sprintf("%s******************************************************************\n", s)
+	}
+
+	//Show current dir
+	s = fmt.Sprintf("%scurrent dir: %s\n", s, m.current)
 
 	// Iterate over our choices
 	for i, choice := range m.choices {
@@ -78,14 +105,8 @@ func (m selection) View() string {
 			cursor = ">" // cursor!
 		}
 
-		// Is this choice selected?
-		//checked := " " // not selected
-		//if _, ok := m.selected[i]; ok {
-		//	checked = "x" // selected!
-		//}
-
 		// Render the row
-		s += fmt.Sprintf("%s %s\n", cursor, choice)
+		s += fmt.Sprintf(" %s %s\n", cursor, entryToString(choice))
 	}
 
 	// The footer
@@ -95,28 +116,15 @@ func (m selection) View() string {
 	return s
 }
 
-func dirContent() []string {    
-    entries, err := os.ReadDir("./")
-    if err != nil {
-        log.Fatal(err)
-    }
- 
-    names := []string{}
-    for _, e := range entries {
-        names = append(names, entryToString(e))
-    }
-    return names
-}
-
 func entryToString(e os.DirEntry) string {
-    // The retruned string will be either "<filesymbol> filename" or "<dirsymbol> dirname"
-    // Define if we use a file or dir symbol
-    s := ""
-    if e.IsDir() {
-        s = res.DirSymbol 
-    } else {
-        s = res.FileSymbol
-    }
+	// The retruned string will be either "<filesymbol> filename" or "<dirsymbol> dirname"
+	// Define if we use a file or dir symbol
+	s := ""
+	if e.IsDir() {
+		s = res.DirSymbol
+	} else {
+		s = res.FileSymbol
+	}
 
-    return fmt.Sprintf("%s %s", s, e.Name())
+	return fmt.Sprintf("%s %s", s, e.Name())
 }
